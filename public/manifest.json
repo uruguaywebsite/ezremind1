@@ -1,6 +1,6 @@
 {
-  "name": "Recordatorios",
-  "short_name": "Recordar",
+  "name": "EZ Remind",
+  "short_name": "EZ Remind",
   "description": "No olvides nada. Recordatorios simples para estudiantes.",
   "start_url": "/",
   "display": "standalone",

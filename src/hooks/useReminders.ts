@@ -29,7 +29,7 @@ export function useReminders() {
   }, [refresh]);
 
   const add = useCallback(
-    async (text: string, delayMs: number, intervalMs: number) => {
+    async (text: string, delayMs: number, intervalMs: number, imageDataUrl?: string, link?: string) => {
       await requestNotificationPermission();
 
       const id = generateId();
@@ -37,6 +37,8 @@ export function useReminders() {
       const reminder: Reminder = {
         id,
         text,
+        imageDataUrl,
+        link,
         createdAt: now,
         startAt: now + delayMs,
         intervalMs,

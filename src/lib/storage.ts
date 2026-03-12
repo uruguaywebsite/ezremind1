@@ -2,15 +2,17 @@
 export interface Reminder {
   id: string;
   text: string;
+  imageDataUrl?: string;  // base64 image
+  link?: string;          // URL
   createdAt: number;
-  startAt: number;       // timestamp when first notification fires
-  intervalMs: number;    // repeat interval in ms
+  startAt: number;
+  intervalMs: number;
   done: boolean;
   doneAt?: number;
 }
 
 // Storage abstraction — swap localStorage for Supabase later
-const STORAGE_KEY = 'recordatorios_data';
+const STORAGE_KEY = 'ezremind_data';
 
 function read(): Reminder[] {
   if (typeof window === 'undefined') return [];

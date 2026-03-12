@@ -4,20 +4,64 @@ import { useState, useEffect } from 'react';
 import { useReminders } from '@/hooks/useReminders';
 import ReminderCard from '@/components/ReminderCard';
 import NewReminderForm from '@/components/NewReminderForm';
+import SetupGuide from '@/components/SetupGuide';
+
+const SETUP_KEY = 'ezremind_setup';
+const THEME_KEY = 'ezremind_theme';
 
 export default function Home() {
   const { active, done, add, markDone, remove } = useReminders();
   const [showForm, setShowForm] = useState(false);
   const [showDone, setShowDone] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
+  const [dark, setDark] = useState(false);
 
-  // Register service worker
   useEffect(() => {
     setMounted(true);
+
+    // Register SW
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(console.error);
     }
+
+    // Check setup guide
+    const setupVal = localStorage.getItem(SETUP_KEY);
+    if (!setupVal || setupVal === 'later') {
+      setShowSetup(true);
+    }
+
+    // Load theme
+    const savedTheme = localStorage.getItem(THEME_KEY);
+    if (savedTheme === 'dark') {
+      setDark(true);
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else if (!savedTheme) {
+      // Follow system preference
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (prefersDark) {
+        setDark(true);
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    }
   }, []);
+
+  const toggleDark = () => {
+    const next = !dark;
+    setDark(next);
+    if (next) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem(THEME_KEY, 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+      localStorage.setItem(THEME_KEY, 'light');
+    }
+  };
+
+  const dismissSetup = (remindLater: boolean) => {
+    localStorage.setItem(SETUP_KEY, remindLater ? 'later' : 'done');
+    setShowSetup(false);
+  };
 
   if (!mounted) return null;
 
@@ -31,31 +75,56 @@ export default function Home() {
       }}
     >
       {/* Header */}
-      <header style={{ marginBottom: '28px', paddingTop: '12px' }}>
-        <h1
+      <header style={{ marginBottom: '28px', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1
+            style={{
+              fontFamily: "'Patrick Hand', cursive",
+              fontSize: '32px',
+              fontWeight: 400,
+              color: 'var(--text)',
+              margin: '0 0 4px 0',
+              letterSpacing: '-0.5px',
+            }}
+          >
+            EZ Remind
+          </h1>
+          <p
+            style={{
+              fontFamily: "'Nunito', sans-serif",
+              fontSize: '13px',
+              color: 'var(--text-faint)',
+              margin: 0,
+              fontWeight: 500,
+            }}
+          >
+            No olvides nada.
+          </p>
+        </div>
+        <button
+          onClick={toggleDark}
+          aria-label="Cambiar tema"
           style={{
-            fontFamily: "'Patrick Hand', cursive",
-            fontSize: '32px',
-            fontWeight: 400,
-            color: '#2c2926',
-            margin: '0 0 4px 0',
-            letterSpacing: '-0.5px',
+            background: 'none',
+            border: '1.5px solid var(--border)',
+            borderRadius: '50%',
+            width: '38px',
+            height: '38px',
+            cursor: 'pointer',
+            fontSize: '18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: '4px',
+            transition: 'border-color 0.2s ease',
           }}
         >
-          Recordatorios
-        </h1>
-        <p
-          style={{
-            fontFamily: "'Nunito', sans-serif",
-            fontSize: '13px',
-            color: '#a09a94',
-            margin: 0,
-            fontWeight: 500,
-          }}
-        >
-          No olvides nada.
-        </p>
+          {dark ? '☀️' : '🌙'}
+        </button>
       </header>
+
+      {/* Setup Guide */}
+      {showSetup && <SetupGuide onDismiss={dismissSetup} />}
 
       {/* New Reminder CTA */}
       {!showForm && (
@@ -74,7 +143,7 @@ export default function Home() {
             fontSize: '15px',
             letterSpacing: '1px',
             textTransform: 'uppercase',
-            color: '#5a4a05',
+            color: 'var(--highlight-text)',
             background: 'transparent',
             position: 'relative',
             transition: 'transform 0.15s ease',
@@ -86,7 +155,6 @@ export default function Home() {
             (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
           }}
         >
-          {/* Highlighter effect behind text */}
           <span
             style={{
               position: 'relative',
@@ -102,7 +170,7 @@ export default function Home() {
                 right: 0,
                 bottom: '0px',
                 height: '55%',
-                background: 'linear-gradient(90deg, rgba(255,230,60,0.55), rgba(255,210,40,0.4))',
+                background: 'var(--highlight-bg)',
                 borderRadius: '3px',
                 transform: 'rotate(-0.5deg)',
                 zIndex: 0,
@@ -113,18 +181,18 @@ export default function Home() {
         </button>
       )}
 
-      {/* New Reminder Form */}
+      {/* Form */}
       {showForm && (
         <NewReminderForm
-          onSubmit={(text, delayMs, intervalMs) => {
-            add(text, delayMs, intervalMs);
+          onSubmit={(text, delayMs, intervalMs, imageDataUrl, link) => {
+            add(text, delayMs, intervalMs, imageDataUrl, link);
             setShowForm(false);
           }}
           onCancel={() => setShowForm(false)}
         />
       )}
 
-      {/* Active Reminders */}
+      {/* Active */}
       {active.length > 0 && (
         <section>
           <h2
@@ -132,7 +200,7 @@ export default function Home() {
               fontFamily: "'Nunito', sans-serif",
               fontSize: '11px',
               fontWeight: 700,
-              color: '#b0a8a0',
+              color: 'var(--text-faintest)',
               textTransform: 'uppercase',
               letterSpacing: '1.5px',
               marginBottom: '12px',
@@ -148,18 +216,13 @@ export default function Home() {
 
       {/* Empty state */}
       {active.length === 0 && !showForm && (
-        <div
-          style={{
-            textAlign: 'center',
-            padding: '60px 20px',
-          }}
-        >
+        <div style={{ textAlign: 'center', padding: '60px 20px' }}>
           <div style={{ fontSize: '36px', marginBottom: '12px', opacity: 0.4 }}>📝</div>
           <p
             style={{
               fontFamily: "'Patrick Hand', cursive",
               fontSize: '18px',
-              color: '#b0a8a0',
+              color: 'var(--text-faintest)',
               margin: 0,
             }}
           >
@@ -169,16 +232,16 @@ export default function Home() {
             style={{
               fontFamily: "'Nunito', sans-serif",
               fontSize: '13px',
-              color: '#c5c0ba',
+              color: 'var(--text-placeholder)',
               margin: '6px 0 0',
             }}
           >
-            Toca el botón para agregar uno
+            Tocá el botón para agregar uno
           </p>
         </div>
       )}
 
-      {/* Done Section */}
+      {/* Done */}
       {done.length > 0 && (
         <section style={{ marginTop: '28px' }}>
           <button
@@ -190,7 +253,7 @@ export default function Home() {
               fontFamily: "'Nunito', sans-serif",
               fontSize: '11px',
               fontWeight: 700,
-              color: '#b0a8a0',
+              color: 'var(--text-faintest)',
               textTransform: 'uppercase',
               letterSpacing: '1.5px',
               padding: '4px 0',

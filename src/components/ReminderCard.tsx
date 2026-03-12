@@ -21,24 +21,31 @@ function intervalLabel(ms: number) {
   return `${min / 60} h`;
 }
 
+function extractDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace('www.', '');
+  } catch {
+    return url;
+  }
+}
+
 export default function ReminderCard({ reminder, onDone, onDelete }: Props) {
   const isActive = !reminder.done;
 
   return (
     <div
-      className={`reminder-card ${reminder.done ? 'done' : ''}`}
       style={{
         position: 'relative',
         padding: '20px 18px 16px',
         marginBottom: '14px',
         borderRadius: '6px',
-        backgroundColor: reminder.done ? 'rgba(200, 210, 200, 0.12)' : 'rgba(255,255,255,0.85)',
-        border: '1px solid rgba(180, 190, 200, 0.25)',
+        backgroundColor: reminder.done ? 'var(--bg-card-done)' : 'var(--bg-card)',
+        border: '1px solid var(--border)',
         transition: 'all 0.3s ease',
         opacity: reminder.done ? 0.55 : 1,
       }}
     >
-      {/* Delete button */}
+      {/* Delete */}
       <button
         onClick={() => onDelete(reminder.id)}
         aria-label="Eliminar"
@@ -49,7 +56,7 @@ export default function ReminderCard({ reminder, onDone, onDelete }: Props) {
           background: 'none',
           border: 'none',
           fontSize: '16px',
-          color: '#b0a8a0',
+          color: 'var(--text-faintest)',
           cursor: 'pointer',
           padding: '4px',
           lineHeight: 1,
@@ -58,12 +65,28 @@ export default function ReminderCard({ reminder, onDone, onDelete }: Props) {
         ×
       </button>
 
+      {/* Image */}
+      {reminder.imageDataUrl && (
+        <img
+          src={reminder.imageDataUrl}
+          alt=""
+          style={{
+            width: '100%',
+            maxHeight: '160px',
+            objectFit: 'cover',
+            borderRadius: '6px',
+            marginBottom: '10px',
+            border: '1px solid var(--border)',
+          }}
+        />
+      )}
+
       {/* Text */}
       <p
         style={{
           fontFamily: "'Patrick Hand', cursive",
           fontSize: '19px',
-          color: '#2c2926',
+          color: 'var(--text)',
           margin: '0 0 8px 0',
           textDecoration: reminder.done ? 'line-through' : 'none',
           lineHeight: 1.4,
@@ -73,6 +96,31 @@ export default function ReminderCard({ reminder, onDone, onDelete }: Props) {
         {reminder.text}
       </p>
 
+      {/* Link */}
+      {reminder.link && (
+        <a
+          href={reminder.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontFamily: "'Nunito', sans-serif",
+            fontSize: '12px',
+            color: 'var(--link-color)',
+            textDecoration: 'none',
+            marginBottom: '8px',
+            padding: '4px 10px',
+            borderRadius: '4px',
+            background: 'var(--bg-input)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          🔗 {extractDomain(reminder.link)}
+        </a>
+      )}
+
       {/* Meta */}
       <div
         style={{
@@ -80,8 +128,9 @@ export default function ReminderCard({ reminder, onDone, onDelete }: Props) {
           gap: '14px',
           fontSize: '12px',
           fontFamily: "'Nunito', sans-serif",
-          color: '#8a8580',
+          color: 'var(--text-muted)',
           marginBottom: isActive ? '14px' : '0',
+          marginTop: reminder.link ? '8px' : '0',
         }}
       >
         <span>Empieza: {formatTime(reminder.startAt)}</span>
@@ -104,10 +153,9 @@ export default function ReminderCard({ reminder, onDone, onDelete }: Props) {
             fontSize: '15px',
             letterSpacing: '1.5px',
             textTransform: 'uppercase',
-            color: '#2a6e3f',
-            background: 'linear-gradient(180deg, rgba(130, 240, 140, 0.35) 0%, rgba(100, 220, 120, 0.25) 100%)',
-            position: 'relative',
-            transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+            color: 'var(--done-text)',
+            background: 'var(--done-btn)',
+            transition: 'transform 0.15s ease',
           }}
           onMouseDown={(e) => {
             (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)';
