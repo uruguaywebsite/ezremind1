@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { storage, Reminder } from '@/lib/storage';
+import { storage, Reminder, Urgency } from '@/lib/storage';
 import {
   scheduleReminder,
   cancelReminder as cancelNotif,
   requestNotificationPermission,
+  rescheduleWithUrgency,
 } from '@/lib/notifications';
 
 function generateId(): string {
@@ -39,6 +40,7 @@ export function useReminders() {
         text,
         imageDataUrl,
         link,
+        urgency: null,
         createdAt: now,
         startAt: now + delayMs,
         intervalMs,
@@ -46,10 +48,22 @@ export function useReminders() {
       };
 
       storage.add(reminder);
-      await scheduleReminder(id, text, delayMs, intervalMs);
+      await scheduleReminder(id, text, delayMs, intervalMs, null);
       refresh();
     },
     [refresh]
+  );
+
+  const setUrgency = useCallback(
+    async (id: string, urgency: Urgency) => {
+      const r = active.find((x) => x.id === id);
+      if (!r) return;
+      storage.update(id, { urgency });
+      // Reschedule notification with new urgency text
+      await rescheduleWithUrgency(id, r.text, r.intervalMs, urgency);
+      refresh();
+    },
+    [active, refresh]
   );
 
   const markDone = useCallback(
@@ -70,5 +84,5 @@ export function useReminders() {
     [refresh]
   );
 
-  return { active, done, add, markDone, remove };
+  return { active, done, add, markDone, remove, setUrgency };
 }

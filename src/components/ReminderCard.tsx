@@ -1,11 +1,14 @@
 'use client';
 
-import { Reminder } from '@/lib/storage';
+import { useState } from 'react';
+import { Reminder, Urgency } from '@/lib/storage';
 
 interface Props {
   reminder: Reminder;
   onDone: (id: string) => void;
   onDelete: (id: string) => void;
+  activeMarker: Urgency;
+  onHighlight: (id: string) => void;
 }
 
 function formatTime(ts: number) {
@@ -29,11 +32,32 @@ function extractDomain(url: string): string {
   }
 }
 
-export default function ReminderCard({ reminder, onDone, onDelete }: Props) {
+const highlightColors: Record<string, string> = {
+  red: 'rgba(255, 70, 70, 0.3)',
+  yellow: 'rgba(255, 230, 60, 0.35)',
+  green: 'rgba(100, 220, 100, 0.3)',
+};
+
+export default function ReminderCard({ reminder, onDone, onDelete, activeMarker, onHighlight }: Props) {
   const isActive = !reminder.done;
+  const [animating, setAnimating] = useState(false);
+
+  const handleClick = () => {
+    if (activeMarker && isActive) {
+      setAnimating(true);
+      setTimeout(() => {
+        onHighlight(reminder.id);
+        setAnimating(false);
+      }, 500);
+    }
+  };
+
+  const highlightColor = reminder.urgency ? highlightColors[reminder.urgency] : 'transparent';
+  const showHighlight = reminder.urgency !== null;
 
   return (
     <div
+      onClick={handleClick}
       style={{
         position: 'relative',
         padding: '20px 18px 16px',
@@ -43,11 +67,13 @@ export default function ReminderCard({ reminder, onDone, onDelete }: Props) {
         border: '1px solid var(--border)',
         transition: 'all 0.3s ease',
         opacity: reminder.done ? 0.55 : 1,
+        cursor: activeMarker && isActive ? 'pointer' : 'default',
+        transform: activeMarker && isActive ? 'scale(1)' : undefined,
       }}
     >
       {/* Delete */}
       <button
-        onClick={() => onDelete(reminder.id)}
+        onClick={(e) => { e.stopPropagation(); onDelete(reminder.id); }}
         aria-label="Eliminar"
         style={{
           position: 'absolute',
@@ -60,6 +86,7 @@ export default function ReminderCard({ reminder, onDone, onDelete }: Props) {
           cursor: 'pointer',
           padding: '4px',
           lineHeight: 1,
+          zIndex: 2,
         }}
       >
         ×
@@ -72,7 +99,7 @@ export default function ReminderCard({ reminder, onDone, onDelete }: Props) {
           alt=""
           style={{
             width: '100%',
-            maxHeight: '160px',
+            maxHeight: '200px',
             objectFit: 'cover',
             borderRadius: '6px',
             marginBottom: '10px',
@@ -81,7 +108,7 @@ export default function ReminderCard({ reminder, onDone, onDelete }: Props) {
         />
       )}
 
-      {/* Text */}
+      {/* Text with highlight underline */}
       <p
         style={{
           fontFamily: "'Patrick Hand', cursive",
@@ -91,9 +118,44 @@ export default function ReminderCard({ reminder, onDone, onDelete }: Props) {
           textDecoration: reminder.done ? 'line-through' : 'none',
           lineHeight: 1.4,
           paddingRight: '20px',
+          position: 'relative',
+          display: 'inline-block',
         }}
       >
-        {reminder.text}
+        {/* Highlighter underline effect */}
+        {showHighlight && (
+          <span
+            style={{
+              position: 'absolute',
+              left: '-2px',
+              right: '-2px',
+              bottom: '2px',
+              height: '40%',
+              background: highlightColor,
+              borderRadius: '2px',
+              transform: 'rotate(-0.3deg)',
+              zIndex: 0,
+              animation: animating ? 'highlightDraw 0.5s ease-out forwards' : undefined,
+            }}
+          />
+        )}
+        {/* Animating highlight for new application */}
+        {animating && activeMarker && (
+          <span
+            style={{
+              position: 'absolute',
+              left: '-2px',
+              bottom: '2px',
+              height: '40%',
+              background: highlightColors[activeMarker] || 'transparent',
+              borderRadius: '2px',
+              transform: 'rotate(-0.3deg)',
+              zIndex: 0,
+              animation: 'highlightDraw 0.5s ease-out forwards',
+            }}
+          />
+        )}
+        <span style={{ position: 'relative', zIndex: 1 }}>{reminder.text}</span>
       </p>
 
       {/* Link */}
@@ -102,6 +164,7 @@ export default function ReminderCard({ reminder, onDone, onDelete }: Props) {
           href={reminder.link}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -140,7 +203,7 @@ export default function ReminderCard({ reminder, onDone, onDelete }: Props) {
       {/* Done button */}
       {isActive && (
         <button
-          onClick={() => onDone(reminder.id)}
+          onClick={(e) => { e.stopPropagation(); onDone(reminder.id); }}
           style={{
             display: 'block',
             width: '100%',
@@ -157,16 +220,17 @@ export default function ReminderCard({ reminder, onDone, onDelete }: Props) {
             background: 'var(--done-btn)',
             transition: 'transform 0.15s ease',
           }}
-          onMouseDown={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)';
-          }}
-          onMouseUp={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
-          }}
         >
           ✓ Hecho
         </button>
       )}
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes highlightDraw {
+          0% { width: 0; opacity: 0.8; }
+          100% { width: calc(100% + 4px); opacity: 1; }
+        }
+      `}} />
     </div>
   );
 }

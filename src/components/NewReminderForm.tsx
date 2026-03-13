@@ -27,7 +27,7 @@ export default function NewReminderForm({ onSubmit, onCancel }: Props) {
   const [useCustomTime, setUseCustomTime] = useState(false);
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>();
   const [link, setLink] = useState('');
-  const [showExtras, setShowExtras] = useState(false);
+  const [showLink, setShowLink] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = () => {
@@ -47,24 +47,26 @@ export default function NewReminderForm({ onSubmit, onCancel }: Props) {
       delayMs = DELAY_OPTIONS[delayIdx].ms;
     }
 
-    const finalLink = link.trim() || undefined;
-    onSubmit(text.trim(), delayMs, INTERVAL_OPTIONS[intervalIdx].ms, imageDataUrl, finalLink);
-  };
-
-  const handleImagePick = () => {
-    fileRef.current?.click();
+    onSubmit(text.trim(), delayMs, INTERVAL_OPTIONS[intervalIdx].ms, imageDataUrl, link.trim() || undefined);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Resize to max 400px to save localStorage space
+
+    if (!file.type.startsWith('image/')) {
+      // Non-image file: just store the name as a reference
+      setLink(file.name);
+      setShowLink(true);
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (ev) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const max = 400;
+        const max = 1200; // High quality - legible text
         let w = img.width;
         let h = img.height;
         if (w > max || h > max) {
@@ -75,7 +77,7 @@ export default function NewReminderForm({ onSubmit, onCancel }: Props) {
         canvas.height = h;
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, w, h);
-        setImageDataUrl(canvas.toDataURL('image/jpeg', 0.7));
+        setImageDataUrl(canvas.toDataURL('image/jpeg', 0.85));
       };
       img.src = ev.target?.result as string;
     };
@@ -111,7 +113,6 @@ export default function NewReminderForm({ onSubmit, onCancel }: Props) {
     fontWeight: 600,
     color: 'var(--text-muted)',
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
   };
 
   return (
@@ -125,7 +126,6 @@ export default function NewReminderForm({ onSubmit, onCancel }: Props) {
         boxShadow: '0 2px 12px var(--shadow)',
       }}
     >
-      {/* Input */}
       <label
         style={{
           display: 'block',
@@ -134,7 +134,6 @@ export default function NewReminderForm({ onSubmit, onCancel }: Props) {
           fontWeight: 600,
           color: 'var(--text-faint)',
           marginBottom: '8px',
-          letterSpacing: '0.3px',
         }}
       >
         ¿Qué no quieres olvidar?
@@ -161,22 +160,20 @@ export default function NewReminderForm({ onSubmit, onCancel }: Props) {
         }}
       />
 
-      {/* Extras toggle */}
+      {/* Attach buttons */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-        <button onClick={handleImagePick} style={smallBtnStyle}>
-          📷 Foto
+        <button onClick={() => fileRef.current?.click()} style={smallBtnStyle}>
+          📎 Adjuntar
         </button>
-        <button onClick={() => setShowExtras(!showExtras)} style={smallBtnStyle}>
+        <button onClick={() => setShowLink(!showLink)} style={smallBtnStyle}>
           🔗 Link
         </button>
       </div>
 
-      {/* Hidden file input */}
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
-        capture="environment"
+        accept="image/*,application/pdf,.doc,.docx"
         onChange={handleFileChange}
         style={{ display: 'none' }}
       />
@@ -189,10 +186,11 @@ export default function NewReminderForm({ onSubmit, onCancel }: Props) {
             alt="Preview"
             style={{
               width: '100%',
-              maxHeight: '200px',
-              objectFit: 'cover',
+              maxHeight: '250px',
+              objectFit: 'contain',
               borderRadius: '8px',
               border: '1px solid var(--border)',
+              background: 'var(--bg-input)',
             }}
           />
           <button
@@ -220,104 +218,56 @@ export default function NewReminderForm({ onSubmit, onCancel }: Props) {
       )}
 
       {/* Link input */}
-      {showExtras && (
-        <div style={{ marginBottom: '14px' }}>
-          <input
-            type="url"
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-            placeholder="https://..."
-            style={{
-              width: '100%',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              border: '1.5px solid var(--border-input)',
-              fontFamily: "'Nunito', sans-serif",
-              fontSize: '14px',
-              color: 'var(--text)',
-              background: 'var(--bg-input)',
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
-          />
-        </div>
+      {showLink && (
+        <input
+          type="url"
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+          placeholder="https://..."
+          style={{
+            width: '100%',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            border: '1.5px solid var(--border-input)',
+            fontFamily: "'Nunito', sans-serif",
+            fontSize: '14px',
+            color: 'var(--text)',
+            background: 'var(--bg-input)',
+            outline: 'none',
+            boxSizing: 'border-box',
+            marginBottom: '14px',
+          }}
+        />
       )}
 
       {/* Delay */}
-      <label
-        style={{
-          display: 'block',
-          fontFamily: "'Nunito', sans-serif",
-          fontSize: '12px',
-          fontWeight: 600,
-          color: 'var(--text-faint)',
-          marginBottom: '8px',
-          textTransform: 'uppercase',
-          letterSpacing: '0.8px',
-        }}
-      >
+      <label style={{ display: 'block', fontFamily: "'Nunito', sans-serif", fontSize: '12px', fontWeight: 600, color: 'var(--text-faint)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
         Empezar a recordar en
       </label>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
         {DELAY_OPTIONS.map((opt, i) => (
-          <button
-            key={opt.label}
-            onClick={() => { setDelayIdx(i); setUseCustomTime(false); }}
-            style={chipStyle(!useCustomTime && delayIdx === i)}
-          >
+          <button key={opt.label} onClick={() => { setDelayIdx(i); setUseCustomTime(false); }} style={chipStyle(!useCustomTime && delayIdx === i)}>
             {opt.label}
           </button>
         ))}
-        <button
-          onClick={() => setUseCustomTime(true)}
-          style={chipStyle(useCustomTime)}
-        >
+        <button onClick={() => setUseCustomTime(true)} style={chipStyle(useCustomTime)}>
           Hora exacta
         </button>
       </div>
 
       {useCustomTime && (
-        <input
-          type="time"
-          value={customTime}
-          onChange={(e) => setCustomTime(e.target.value)}
-          style={{
-            padding: '10px 14px',
-            borderRadius: '8px',
-            border: '1.5px solid var(--border-input)',
-            fontFamily: "'Nunito', sans-serif",
-            fontSize: '15px',
-            color: 'var(--text)',
-            background: 'var(--bg-input)',
-            marginBottom: '6px',
-            marginTop: '6px',
-          }}
+        <input type="time" value={customTime} onChange={(e) => setCustomTime(e.target.value)}
+          style={{ padding: '10px 14px', borderRadius: '8px', border: '1.5px solid var(--border-input)', fontFamily: "'Nunito', sans-serif", fontSize: '15px', color: 'var(--text)', background: 'var(--bg-input)', marginBottom: '6px', marginTop: '6px' }}
         />
       )}
 
       {/* Interval */}
-      <label
-        style={{
-          display: 'block',
-          fontFamily: "'Nunito', sans-serif",
-          fontSize: '12px',
-          fontWeight: 600,
-          color: 'var(--text-faint)',
-          marginBottom: '8px',
-          marginTop: '16px',
-          textTransform: 'uppercase',
-          letterSpacing: '0.8px',
-        }}
-      >
+      <label style={{ display: 'block', fontFamily: "'Nunito', sans-serif", fontSize: '12px', fontWeight: 600, color: 'var(--text-faint)', marginBottom: '8px', marginTop: '16px', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
         Repetir
       </label>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
         {INTERVAL_OPTIONS.map((opt, i) => (
-          <button
-            key={opt.label}
-            onClick={() => setIntervalIdx(i)}
-            style={chipStyle(intervalIdx === i)}
-          >
+          <button key={opt.label} onClick={() => setIntervalIdx(i)} style={chipStyle(intervalIdx === i)}>
             {opt.label}
           </button>
         ))}
@@ -329,15 +279,9 @@ export default function NewReminderForm({ onSubmit, onCancel }: Props) {
           onClick={handleSubmit}
           disabled={!text.trim()}
           style={{
-            flex: 1,
-            padding: '14px 0',
-            borderRadius: '8px',
-            border: 'none',
+            flex: 1, padding: '14px 0', borderRadius: '8px', border: 'none',
             cursor: text.trim() ? 'pointer' : 'default',
-            fontFamily: "'Nunito', sans-serif",
-            fontWeight: 800,
-            fontSize: '15px',
-            letterSpacing: '0.8px',
+            fontFamily: "'Nunito', sans-serif", fontWeight: 800, fontSize: '15px', letterSpacing: '0.8px',
             color: text.trim() ? 'var(--highlight-text)' : 'var(--text-faintest)',
             background: text.trim() ? 'var(--highlight-btn)' : 'var(--bg-input)',
             transition: 'all 0.2s ease',
@@ -345,18 +289,11 @@ export default function NewReminderForm({ onSubmit, onCancel }: Props) {
         >
           Guardar
         </button>
-        <button
-          onClick={onCancel}
+        <button onClick={onCancel}
           style={{
-            padding: '14px 24px',
-            borderRadius: '8px',
-            border: '1.5px solid var(--chip-border)',
-            background: 'transparent',
-            cursor: 'pointer',
-            fontFamily: "'Nunito', sans-serif",
-            fontWeight: 600,
-            fontSize: '14px',
-            color: 'var(--text-faint)',
+            padding: '14px 24px', borderRadius: '8px', border: '1.5px solid var(--chip-border)',
+            background: 'transparent', cursor: 'pointer',
+            fontFamily: "'Nunito', sans-serif", fontWeight: 600, fontSize: '14px', color: 'var(--text-faint)',
           }}
         >
           Cancelar

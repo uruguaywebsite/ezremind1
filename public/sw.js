@@ -1,13 +1,9 @@
-/// <reference lib="webworker" />
+var CACHE_NAME = 'ezremind-v2';
 
-const CACHE_NAME = 'recordatorios-v1';
-
-// Install: skip waiting immediately
 self.addEventListener('install', function(event) {
   self.skipWaiting();
 });
 
-// Activate: claim clients and clean old caches
 self.addEventListener('activate', function(event) {
   event.waitUntil(
     caches.keys().then(function(keys) {
@@ -21,16 +17,13 @@ self.addEventListener('activate', function(event) {
   );
 });
 
-// Fetch: network-first, fallback to cache
 self.addEventListener('fetch', function(event) {
   if (event.request.method !== 'GET') return;
-  // Skip chrome-extension and non-http requests
   if (!event.request.url.startsWith('http')) return;
 
   event.respondWith(
     fetch(event.request)
       .then(function(response) {
-        // Only cache valid responses
         if (response && response.status === 200) {
           var clone = response.clone();
           caches.open(CACHE_NAME).then(function(cache) {
@@ -45,14 +38,13 @@ self.addEventListener('fetch', function(event) {
   );
 });
 
-// Listen for messages from the main app
 self.addEventListener('message', function(event) {
   var data = event.data || {};
   var type = data.type;
   var payload = data.payload;
 
   if (type === 'SCHEDULE_NOTIFICATION') {
-    scheduleRepeating(payload.id, payload.text, payload.delayMs, payload.intervalMs);
+    scheduleRepeating(payload.id, payload.text, payload.delayMs, payload.intervalMs, payload.urgent);
   }
 
   if (type === 'CANCEL_NOTIFICATION') {
@@ -60,16 +52,15 @@ self.addEventListener('message', function(event) {
   }
 });
 
-// In-memory timer store (service worker lifetime)
 var timers = {};
 
-function scheduleRepeating(id, text, delayMs, intervalMs) {
+function scheduleRepeating(id, text, delayMs, intervalMs, urgent) {
   cancelReminder(id);
 
   var firstTimeout = setTimeout(function() {
-    showNotification(text);
+    showNotification(text, urgent);
     var interval = setInterval(function() {
-      showNotification(text);
+      showNotification(text, urgent);
     }, intervalMs);
     timers[id] = { timerType: 'interval', ref: interval };
   }, delayMs);
@@ -85,19 +76,26 @@ function cancelReminder(id) {
   delete timers[id];
 }
 
-function showNotification(text) {
-  self.registration.showNotification('Recordatorios', {
-    body: '🔔 ' + text,
+function showNotification(text, urgent) {
+  var options = {
+    body: text,
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    vibrate: [200, 100, 200],
+    vibrate: urgent ? [300, 100, 300, 100, 300] : [200, 100, 200],
     tag: 'reminder-' + Date.now(),
     renotify: true,
     requireInteraction: true,
-  });
+  };
+
+  // For urgent: use "critical" style where supported
+  if (urgent) {
+    options.urgency = 'high';
+    options.silent = false;
+  }
+
+  self.registration.showNotification('EZ Remind', options);
 }
 
-// Handle notification click: focus the app
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
   event.waitUntil(

@@ -1,9 +1,11 @@
-// Types
+export type Urgency = 'green' | 'yellow' | 'red' | null;
+
 export interface Reminder {
   id: string;
   text: string;
-  imageDataUrl?: string;  // base64 image
-  link?: string;          // URL
+  imageDataUrl?: string;
+  link?: string;
+  urgency: Urgency;
   createdAt: number;
   startAt: number;
   intervalMs: number;
@@ -11,7 +13,6 @@ export interface Reminder {
   doneAt?: number;
 }
 
-// Storage abstraction — swap localStorage for Supabase later
 const STORAGE_KEY = 'ezremind_data';
 
 function read(): Reminder[] {
@@ -29,14 +30,25 @@ function write(reminders: Reminder[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders));
 }
 
-// Public API
+// Sort: red first, yellow second, green third, null last
+const urgencyOrder: Record<string, number> = { red: 0, yellow: 1, green: 2 };
+
+function sortByUrgency(reminders: Reminder[]): Reminder[] {
+  return [...reminders].sort((a, b) => {
+    const aOrder = a.urgency ? urgencyOrder[a.urgency] : 3;
+    const bOrder = b.urgency ? urgencyOrder[b.urgency] : 3;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return b.createdAt - a.createdAt;
+  });
+}
+
 export const storage = {
   getAll(): Reminder[] {
     return read();
   },
 
   getActive(): Reminder[] {
-    return read().filter((r) => !r.done);
+    return sortByUrgency(read().filter((r) => !r.done));
   },
 
   getDone(): Reminder[] {
@@ -46,6 +58,13 @@ export const storage = {
   add(reminder: Reminder) {
     const all = read();
     all.unshift(reminder);
+    write(all);
+  },
+
+  update(id: string, updates: Partial<Reminder>) {
+    const all = read();
+    const r = all.find((x) => x.id === id);
+    if (r) Object.assign(r, updates);
     write(all);
   },
 

@@ -1,3 +1,5 @@
+import type { Urgency } from './storage';
+
 export async function requestNotificationPermission(): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   if (typeof Notification === 'undefined') return false;
@@ -7,13 +9,29 @@ export async function requestNotificationPermission(): Promise<boolean> {
   return result === 'granted';
 }
 
+export function getNotificationText(text: string, urgency: Urgency): string {
+  switch (urgency) {
+    case 'red':
+      return `🚨 URGENTE: ${text} — ¡Hacelo YA!`;
+    case 'yellow':
+      return `⚡ Hey, no te olvides: ${text}`;
+    case 'green':
+    default:
+      return `🔔 ${text}`;
+  }
+}
+
 export async function scheduleReminder(
   id: string,
   text: string,
   delayMs: number,
-  intervalMs: number
+  intervalMs: number,
+  urgency: Urgency = null
 ): Promise<void> {
   if (typeof window === 'undefined') return;
+
+  const notifText = getNotificationText(text, urgency);
+  const isUrgent = urgency === 'red';
 
   if ('serviceWorker' in navigator) {
     try {
@@ -21,7 +39,7 @@ export async function scheduleReminder(
       if (reg.active) {
         reg.active.postMessage({
           type: 'SCHEDULE_NOTIFICATION',
-          payload: { id, text, delayMs, intervalMs },
+          payload: { id, text: notifText, delayMs, intervalMs, urgent: isUrgent },
         });
         return;
       }
@@ -30,8 +48,7 @@ export async function scheduleReminder(
     }
   }
 
-  // Fallback: in-page timers (only works while tab is open)
-  fallbackSchedule(id, text, delayMs, intervalMs);
+  fallbackSchedule(id, notifText, delayMs, intervalMs);
 }
 
 export async function cancelReminder(id: string): Promise<void> {
@@ -55,7 +72,18 @@ export async function cancelReminder(id: string): Promise<void> {
   fallbackCancel(id);
 }
 
-// Fallback for browsers without SW support
+// Re-schedule with new urgency text (when user highlights a task)
+export async function rescheduleWithUrgency(
+  id: string,
+  text: string,
+  intervalMs: number,
+  urgency: Urgency
+): Promise<void> {
+  await cancelReminder(id);
+  // Schedule with 0 delay (start immediately) since it's already active
+  await scheduleReminder(id, text, 0, intervalMs, urgency);
+}
+
 const fallbackTimers: Record<string, { timeout?: ReturnType<typeof setTimeout>; interval?: ReturnType<typeof setInterval> }> = {};
 
 function fallbackSchedule(id: string, text: string, delayMs: number, intervalMs: number) {
@@ -80,8 +108,8 @@ function fallbackCancel(id: string) {
 
 function showFallbackNotification(text: string) {
   if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-    new Notification('Recordatorios', {
-      body: `🔔 ${text}`,
+    new Notification('EZ Remind', {
+      body: text,
       icon: '/icon-192.png',
     });
   }
