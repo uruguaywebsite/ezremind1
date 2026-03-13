@@ -7,21 +7,21 @@ interface Props {
   onSelect: (color: Urgency) => void;
 }
 
-const markers: { color: Urgency; img: string; label: string }[] = [
-  { color: 'red', img: '/marker-red.png', label: 'Urgente' },
-  { color: 'yellow', img: '/marker-yellow.png', label: 'Importante' },
-  { color: 'green', img: '/marker-green.png', label: 'Tranqui' },
+const markers: { color: Urgency; img: string }[] = [
+  { color: 'red', img: '/marker-red.png' },
+  { color: 'yellow', img: '/marker-yellow.png' },
+  { color: 'green', img: '/marker-green.png' },
 ];
 
 export default function HighlighterBar({ activeMarker, onSelect }: Props) {
   return (
     <>
-      {/* Instruction text when marker is active */}
+      {/* Instruction when marker selected */}
       {activeMarker && (
         <div
           style={{
             position: 'fixed',
-            bottom: '105px',
+            bottom: '120px',
             left: '50%',
             transform: 'translateX(-50%)',
             fontFamily: "'Nunito', sans-serif",
@@ -35,14 +35,13 @@ export default function HighlighterBar({ activeMarker, onSelect }: Props) {
             boxShadow: '0 2px 10px var(--shadow)',
             zIndex: 100,
             whiteSpace: 'nowrap',
-            animation: 'fadeIn 0.2s ease-out',
           }}
         >
           Tocá un recordatorio para subrayarlo
         </div>
       )}
 
-      {/* Marker bar */}
+      {/* Marker bar - fixed at bottom */}
       <div
         style={{
           position: 'fixed',
@@ -52,11 +51,11 @@ export default function HighlighterBar({ activeMarker, onSelect }: Props) {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'flex-end',
-          gap: '16px',
-          padding: '12px 20px 20px',
-          background: 'linear-gradient(transparent, var(--bg) 30%)',
+          gap: '24px',
+          paddingBottom: '16px',
+          paddingTop: '40px',
+          background: 'linear-gradient(transparent 0%, var(--bg) 50%)',
           zIndex: 99,
-          pointerEvents: 'none',
         }}
       >
         {markers.map((m) => {
@@ -71,48 +70,27 @@ export default function HighlighterBar({ activeMarker, onSelect }: Props) {
                 cursor: 'pointer',
                 padding: '0',
                 display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '4px',
-                pointerEvents: 'auto',
-                transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                transform: isActive ? 'translateY(-12px) scale(1.15)' : 'translateY(0) scale(1)',
-                filter: isActive ? 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))' : 'none',
+                alignItems: 'flex-end',
+                justifyContent: 'center',
+                width: '44px',
+                transition: 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                transform: isActive ? 'translateY(-14px)' : 'translateY(0)',
+                filter: isActive ? 'drop-shadow(0 6px 12px rgba(0,0,0,0.25))' : 'none',
               }}
             >
               <img
                 src={m.img}
-                alt={m.label}
+                alt={m.color || ''}
                 style={{
-                  width: '70px',
-                  height: 'auto',
-                  transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  height: '80px',
+                  width: 'auto',
+                  objectFit: 'contain',
                 }}
               />
-              {isActive && (
-                <span
-                  style={{
-                    fontFamily: "'Nunito', sans-serif",
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    color: 'var(--text-muted)',
-                    animation: 'fadeIn 0.2s ease-out',
-                  }}
-                >
-                  {m.label}
-                </span>
-              )}
             </button>
           );
         })}
       </div>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes fadeIn {
-          0% { opacity: 0; transform: translateX(-50%) translateY(4px); }
-          100% { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
-      `}} />
     </>
   );
 }

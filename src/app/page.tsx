@@ -173,55 +173,45 @@ export default function Home() {
               fontFamily: "'Nunito', sans-serif",
               fontSize: '13px',
               color: 'var(--text-muted)',
-              margin: '0 0 14px 0',
-              lineHeight: 1.5,
+              margin: '0 0 6px 0',
+              lineHeight: 1.6,
             }}
           >
-            Para que tus recordatorios te lleguen siempre, excluí esta app del modo No Molestar en los ajustes de tu teléfono.
+            Para que tus recordatorios te lleguen siempre, excluí esta app del modo No Molestar:
           </p>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={() => {
-                // iOS: settings URL, Android: intent
-                const ua = navigator.userAgent.toLowerCase();
-                if (ua.includes('iphone') || ua.includes('ipad')) {
-                  window.open('app-settings:', '_self');
-                } else {
-                  window.open('intent://settings/notifications#Intent;scheme=android-app;end', '_self');
-                }
-              }}
-              style={{
-                flex: 1,
-                padding: '10px 0',
-                borderRadius: '8px',
-                border: 'none',
-                cursor: 'pointer',
-                fontFamily: "'Nunito', sans-serif",
-                fontWeight: 700,
-                fontSize: '13px',
-                color: 'var(--highlight-text)',
-                background: 'var(--highlight-btn)',
-              }}
-            >
-              Abrir Ajustes
-            </button>
-            <button
-              onClick={() => setShowDndPrompt(false)}
-              style={{
-                padding: '10px 16px',
-                borderRadius: '8px',
-                border: '1.5px solid var(--chip-border)',
-                background: 'transparent',
-                cursor: 'pointer',
-                fontFamily: "'Nunito', sans-serif",
-                fontWeight: 600,
-                fontSize: '13px',
-                color: 'var(--text-faint)',
-              }}
-            >
-              Después
-            </button>
-          </div>
+          <p
+            style={{
+              fontFamily: "'Nunito', sans-serif",
+              fontSize: '12px',
+              color: 'var(--text-secondary)',
+              margin: '0 0 14px 0',
+              lineHeight: 1.6,
+              padding: '10px 12px',
+              borderRadius: '6px',
+              background: 'var(--bg-input)',
+            }}
+          >
+            <strong>iPhone:</strong> Ajustes → Modos de concentración → No molestar → Apps → Agregar EZ Remind<br />
+            <strong>Android:</strong> Ajustes → Sonido → No molestar → Excepciones → Apps → EZ Remind
+          </p>
+          <button
+            onClick={() => setShowDndPrompt(false)}
+            style={{
+              display: 'block',
+              width: '100%',
+              padding: '10px 0',
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: "'Nunito', sans-serif",
+              fontWeight: 700,
+              fontSize: '13px',
+              color: 'var(--highlight-text)',
+              background: 'var(--highlight-btn)',
+            }}
+          >
+            Entendido
+          </button>
         </div>
       )}
 

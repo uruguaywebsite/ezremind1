@@ -12,12 +12,12 @@ export async function requestNotificationPermission(): Promise<boolean> {
 export function getNotificationText(text: string, urgency: Urgency): string {
   switch (urgency) {
     case 'red':
-      return `🚨 URGENTE: ${text} — ¡Hacelo YA!`;
+      return '🚨 URGENTE: ' + text + ' — ¡Hacelo YA!';
     case 'yellow':
-      return `⚡ Hey, no te olvides: ${text}`;
+      return '⚡ Hey, no te olvides: ' + text;
     case 'green':
     default:
-      return `🔔 ${text}`;
+      return '🔔 ' + text;
   }
 }
 
@@ -65,23 +65,40 @@ export async function cancelReminder(id: string): Promise<void> {
         return;
       }
     } catch (err) {
-      console.warn('SW cancel failed, using fallback:', err);
+      console.warn('SW cancel failed:', err);
     }
   }
 
   fallbackCancel(id);
 }
 
-// Re-schedule with new urgency text (when user highlights a task)
-export async function rescheduleWithUrgency(
+// Update notification text for urgency change WITHOUT rescheduling timing
+export async function updateNotificationUrgency(
   id: string,
   text: string,
   intervalMs: number,
   urgency: Urgency
 ): Promise<void> {
-  await cancelReminder(id);
-  // Schedule with 0 delay (start immediately) since it's already active
-  await scheduleReminder(id, text, 0, intervalMs, urgency);
+  if (typeof window === 'undefined') return;
+
+  const notifText = getNotificationText(text, urgency);
+  const isUrgent = urgency === 'red';
+
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg.active) {
+        // Send update message - SW will update text but keep existing timing
+        reg.active.postMessage({
+          type: 'UPDATE_URGENCY',
+          payload: { id, text: notifText, urgent: isUrgent },
+        });
+        return;
+      }
+    } catch (err) {
+      console.warn('SW update failed:', err);
+    }
+  }
 }
 
 const fallbackTimers: Record<string, { timeout?: ReturnType<typeof setTimeout>; interval?: ReturnType<typeof setInterval> }> = {};

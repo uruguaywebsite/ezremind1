@@ -6,7 +6,7 @@ import {
   scheduleReminder,
   cancelReminder as cancelNotif,
   requestNotificationPermission,
-  rescheduleWithUrgency,
+  updateNotificationUrgency,
 } from '@/lib/notifications';
 
 function generateId(): string {
@@ -58,9 +58,9 @@ export function useReminders() {
     async (id: string, urgency: Urgency) => {
       const r = active.find((x) => x.id === id);
       if (!r) return;
+      // Only update storage data and notification text — do NOT reschedule
       storage.update(id, { urgency });
-      // Reschedule notification with new urgency text
-      await rescheduleWithUrgency(id, r.text, r.intervalMs, urgency);
+      await updateNotificationUrgency(id, r.text, r.intervalMs, urgency);
       refresh();
     },
     [active, refresh]

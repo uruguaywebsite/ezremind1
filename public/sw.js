@@ -1,4 +1,4 @@
-var CACHE_NAME = 'ezremind-v2';
+var CACHE_NAME = 'ezremind-v3';
 
 self.addEventListener('install', function(event) {
   self.skipWaiting();
@@ -20,7 +20,6 @@ self.addEventListener('activate', function(event) {
 self.addEventListener('fetch', function(event) {
   if (event.request.method !== 'GET') return;
   if (!event.request.url.startsWith('http')) return;
-
   event.respondWith(
     fetch(event.request)
       .then(function(response) {
@@ -38,42 +37,72 @@ self.addEventListener('fetch', function(event) {
   );
 });
 
+// ---- REMINDER SYSTEM ----
+// Store reminders persistently so they survive SW restarts
+var reminders = {};
+
 self.addEventListener('message', function(event) {
   var data = event.data || {};
   var type = data.type;
   var payload = data.payload;
 
   if (type === 'SCHEDULE_NOTIFICATION') {
-    scheduleRepeating(payload.id, payload.text, payload.delayMs, payload.intervalMs, payload.urgent);
+    var r = payload;
+    reminders[r.id] = {
+      text: r.text,
+      startTime: Date.now() + r.delayMs,
+      intervalMs: r.intervalMs,
+      urgent: r.urgent || false,
+      lastFired: 0
+    };
+    startLoop();
   }
 
   if (type === 'CANCEL_NOTIFICATION') {
-    cancelReminder(payload.id);
+    delete reminders[payload.id];
+  }
+
+  if (type === 'UPDATE_URGENCY') {
+    // Only update text and urgency, keep timing intact
+    var existing = reminders[payload.id];
+    if (existing) {
+      existing.text = payload.text;
+      existing.urgent = payload.urgent || false;
+    }
   }
 });
 
-var timers = {};
+var loopRunning = false;
 
-function scheduleRepeating(id, text, delayMs, intervalMs, urgent) {
-  cancelReminder(id);
-
-  var firstTimeout = setTimeout(function() {
-    showNotification(text, urgent);
-    var interval = setInterval(function() {
-      showNotification(text, urgent);
-    }, intervalMs);
-    timers[id] = { timerType: 'interval', ref: interval };
-  }, delayMs);
-
-  timers[id] = { timerType: 'timeout', ref: firstTimeout };
+function startLoop() {
+  if (loopRunning) return;
+  loopRunning = true;
+  checkReminders();
 }
 
-function cancelReminder(id) {
-  var timer = timers[id];
-  if (!timer) return;
-  if (timer.timerType === 'timeout') clearTimeout(timer.ref);
-  if (timer.timerType === 'interval') clearInterval(timer.ref);
-  delete timers[id];
+function checkReminders() {
+  var now = Date.now();
+  var hasActive = false;
+
+  for (var id in reminders) {
+    var r = reminders[id];
+    hasActive = true;
+
+    if (now < r.startTime) continue;
+
+    // Should we fire?
+    if (r.lastFired === 0 || (now - r.lastFired) >= r.intervalMs) {
+      r.lastFired = now;
+      showNotification(r.text, r.urgent);
+    }
+  }
+
+  if (hasActive) {
+    // Check every 30 seconds — this keeps the SW alive
+    setTimeout(function() { checkReminders(); }, 30000);
+  } else {
+    loopRunning = false;
+  }
 }
 
 function showNotification(text, urgent) {
@@ -85,13 +114,8 @@ function showNotification(text, urgent) {
     tag: 'reminder-' + Date.now(),
     renotify: true,
     requireInteraction: true,
+    silent: false
   };
-
-  // For urgent: use "critical" style where supported
-  if (urgent) {
-    options.urgency = 'high';
-    options.silent = false;
-  }
 
   self.registration.showNotification('EZ Remind', options);
 }
