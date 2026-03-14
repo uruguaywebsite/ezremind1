@@ -21,7 +21,7 @@ export default function HighlighterBar({ activeMarker, onSelect }: Props) {
         <div
           style={{
             position: 'fixed',
-            bottom: '120px',
+            bottom: '85px',
             left: '50%',
             transform: 'translateX(-50%)',
             fontFamily: "'Nunito', sans-serif",
@@ -41,55 +41,73 @@ export default function HighlighterBar({ activeMarker, onSelect }: Props) {
         </div>
       )}
 
-      {/* Marker bar - fixed at bottom */}
+      {/* Marker bar - clips bottom half */}
       <div
         style={{
           position: 'fixed',
           bottom: 0,
           left: 0,
           right: 0,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'flex-end',
-          gap: '24px',
-          paddingBottom: '16px',
-          paddingTop: '40px',
-          background: 'linear-gradient(transparent 0%, var(--bg) 50%)',
+          height: '70px',
+          overflow: 'hidden',
           zIndex: 99,
         }}
       >
-        {markers.map((m) => {
-          const isActive = activeMarker === m.color;
-          return (
-            <button
-              key={m.color}
-              onClick={() => onSelect(isActive ? null : m.color)}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '0',
-                display: 'flex',
-                alignItems: 'flex-end',
-                justifyContent: 'center',
-                width: '44px',
-                transition: 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                transform: isActive ? 'translateY(-14px)' : 'translateY(0)',
-                filter: isActive ? 'drop-shadow(0 6px 12px rgba(0,0,0,0.25))' : 'none',
-              }}
-            >
-              <img
-                src={m.img}
-                alt={m.color || ''}
+        {/* Fade background */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(transparent 0%, var(--bg) 40%)',
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* Markers container */}
+        <div
+          style={{
+            position: 'relative',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            gap: '20px',
+            paddingTop: '10px',
+            height: '140px',
+          }}
+        >
+          {markers.map((m) => {
+            const isActive = activeMarker === m.color;
+            return (
+              <button
+                key={m.color}
+                onClick={() => onSelect(isActive ? null : m.color)}
                 style={{
-                  height: '80px',
-                  width: 'auto',
-                  objectFit: 'contain',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '0',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'center',
+                  width: '50px',
+                  transition: 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  transform: isActive ? 'translateY(-20px)' : 'translateY(0)',
+                  filter: isActive ? 'drop-shadow(0 4px 10px rgba(0,0,0,0.3))' : 'none',
                 }}
-              />
-            </button>
-          );
-        })}
+              >
+                <img
+                  src={m.img}
+                  alt={m.color || ''}
+                  style={{
+                    height: '120px',
+                    width: 'auto',
+                    objectFit: 'contain',
+                  }}
+                />
+              </button>
+            );
+          })}
+        </div>
       </div>
     </>
   );

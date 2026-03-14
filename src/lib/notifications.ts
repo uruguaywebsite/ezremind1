@@ -21,113 +21,122 @@ export function getNotificationText(text: string, urgency: Urgency): string {
   }
 }
 
-export async function scheduleReminder(
-  id: string,
-  text: string,
-  delayMs: number,
-  intervalMs: number,
-  urgency: Urgency = null
-): Promise<void> {
+// Show a notification right now via SW
+async function showNotificationNow(id: string, text: string, urgent: boolean): Promise<void> {
   if (typeof window === 'undefined') return;
 
-  const notifText = getNotificationText(text, urgency);
-  const isUrgent = urgency === 'red';
-
+  // Try via SW first
   if ('serviceWorker' in navigator) {
     try {
       const reg = await navigator.serviceWorker.ready;
       if (reg.active) {
         reg.active.postMessage({
-          type: 'SCHEDULE_NOTIFICATION',
-          payload: { id, text: notifText, delayMs, intervalMs, urgent: isUrgent },
+          type: 'SHOW_NOTIFICATION',
+          payload: { id, text, urgent },
         });
         return;
       }
-    } catch (err) {
-      console.warn('SW scheduling failed, using fallback:', err);
+    } catch (e) {
+      // fallback below
     }
   }
 
-  fallbackSchedule(id, notifText, delayMs, intervalMs);
-}
-
-export async function cancelReminder(id: string): Promise<void> {
-  if (typeof window === 'undefined') return;
-
-  if ('serviceWorker' in navigator) {
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      if (reg.active) {
-        reg.active.postMessage({
-          type: 'CANCEL_NOTIFICATION',
-          payload: { id },
-        });
-        return;
-      }
-    } catch (err) {
-      console.warn('SW cancel failed:', err);
-    }
-  }
-
-  fallbackCancel(id);
-}
-
-// Update notification text for urgency change WITHOUT rescheduling timing
-export async function updateNotificationUrgency(
-  id: string,
-  text: string,
-  intervalMs: number,
-  urgency: Urgency
-): Promise<void> {
-  if (typeof window === 'undefined') return;
-
-  const notifText = getNotificationText(text, urgency);
-  const isUrgent = urgency === 'red';
-
-  if ('serviceWorker' in navigator) {
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      if (reg.active) {
-        // Send update message - SW will update text but keep existing timing
-        reg.active.postMessage({
-          type: 'UPDATE_URGENCY',
-          payload: { id, text: notifText, urgent: isUrgent },
-        });
-        return;
-      }
-    } catch (err) {
-      console.warn('SW update failed:', err);
-    }
-  }
-}
-
-const fallbackTimers: Record<string, { timeout?: ReturnType<typeof setTimeout>; interval?: ReturnType<typeof setInterval> }> = {};
-
-function fallbackSchedule(id: string, text: string, delayMs: number, intervalMs: number) {
-  fallbackCancel(id);
-  const timeout = setTimeout(() => {
-    showFallbackNotification(text);
-    const interval = setInterval(() => {
-      showFallbackNotification(text);
-    }, intervalMs);
-    fallbackTimers[id] = { interval };
-  }, delayMs);
-  fallbackTimers[id] = { timeout };
-}
-
-function fallbackCancel(id: string) {
-  const t = fallbackTimers[id];
-  if (!t) return;
-  if (t.timeout) clearTimeout(t.timeout);
-  if (t.interval) clearInterval(t.interval);
-  delete fallbackTimers[id];
-}
-
-function showFallbackNotification(text: string) {
+  // Fallback: direct Notification API
   if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
     new Notification('EZ Remind', {
       body: text,
       icon: '/icon-192.png',
     });
   }
+}
+
+// --- In-page timer system ---
+// This runs while the page/app is open. Each reminder gets its own interval.
+
+interface TimerEntry {
+  timeout?: ReturnType<typeof setTimeout>;
+  interval?: ReturnType<typeof setInterval>;
+}
+
+const timers: Record<string, TimerEntry> = {};
+
+export function scheduleReminder(
+  id: string,
+  text: string,
+  delayMs: number,
+  intervalMs: number,
+  urgency: Urgency = null
+): void {
+  cancelReminder(id);
+
+  const notifText = getNotificationText(text, urgency);
+  const isUrgent = urgency === 'red';
+
+  const timeout = setTimeout(() => {
+    // Fire first notification
+    showNotificationNow(id, notifText, isUrgent);
+
+    // Then repeat
+    const interval = setInterval(() => {
+      showNotificationNow(id, notifText, isUrgent);
+    }, intervalMs);
+
+    timers[id] = { interval };
+  }, delayMs);
+
+  timers[id] = { timeout };
+}
+
+export function cancelReminder(id: string): void {
+  const t = timers[id];
+  if (!t) return;
+  if (t.timeout) clearTimeout(t.timeout);
+  if (t.interval) clearInterval(t.interval);
+  delete timers[id];
+}
+
+// Re-schedule all active reminders (called on page load to restore timers)
+export function restoreReminders(reminders: Array<{
+  id: string;
+  text: string;
+  startAt: number;
+  intervalMs: number;
+  urgency: Urgency;
+  done: boolean;
+}>): void {
+  const now = Date.now();
+
+  for (const r of reminders) {
+    if (r.done) continue;
+    if (timers[r.id]) continue; // already scheduled
+
+    const delayMs = Math.max(0, r.startAt - now);
+    scheduleReminder(r.id, r.text, delayMs, r.intervalMs, r.urgency);
+  }
+}
+
+// Update urgency text without changing timing
+export function updateUrgencyText(
+  id: string,
+  text: string,
+  intervalMs: number,
+  urgency: Urgency
+): void {
+  const t = timers[id];
+  if (!t) return;
+
+  // We need to cancel and reschedule with new text but keep remaining timing
+  // Since we can't read remaining time from setInterval, just reschedule with 0 delay
+  // but DON'T fire immediately - just update the interval text
+  cancelReminder(id);
+
+  const notifText = getNotificationText(text, urgency);
+  const isUrgent = urgency === 'red';
+
+  // Restart the interval (next fire will use new text)
+  const interval = setInterval(() => {
+    showNotificationNow(id, notifText, isUrgent);
+  }, intervalMs);
+
+  timers[id] = { interval };
 }

@@ -6,7 +6,8 @@ import {
   scheduleReminder,
   cancelReminder as cancelNotif,
   requestNotificationPermission,
-  updateNotificationUrgency,
+  restoreReminders,
+  updateUrgencyText,
 } from '@/lib/notifications';
 
 function generateId(): string {
@@ -27,6 +28,9 @@ export function useReminders() {
 
   useEffect(() => {
     refresh();
+    // Restore all active reminder timers on page load
+    const allActive = storage.getActive();
+    restoreReminders(allActive);
   }, [refresh]);
 
   const add = useCallback(
@@ -48,37 +52,36 @@ export function useReminders() {
       };
 
       storage.add(reminder);
-      await scheduleReminder(id, text, delayMs, intervalMs, null);
+      scheduleReminder(id, text, delayMs, intervalMs, null);
       refresh();
     },
     [refresh]
   );
 
   const setUrgency = useCallback(
-    async (id: string, urgency: Urgency) => {
+    (id: string, urgency: Urgency) => {
       const r = active.find((x) => x.id === id);
       if (!r) return;
-      // Only update storage data and notification text — do NOT reschedule
       storage.update(id, { urgency });
-      await updateNotificationUrgency(id, r.text, r.intervalMs, urgency);
+      updateUrgencyText(id, r.text, r.intervalMs, urgency);
       refresh();
     },
     [active, refresh]
   );
 
   const markDone = useCallback(
-    async (id: string) => {
+    (id: string) => {
       storage.markDone(id);
-      await cancelNotif(id);
+      cancelNotif(id);
       refresh();
     },
     [refresh]
   );
 
   const remove = useCallback(
-    async (id: string) => {
+    (id: string) => {
       storage.delete(id);
-      await cancelNotif(id);
+      cancelNotif(id);
       refresh();
     },
     [refresh]
